@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>{{ title or "Personal PDF Engine" }}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script defer src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <style>
+    body { background: #f4f6fb; color: #0f172a; }
+    .navbar { background:#111827 !important; }
+    .navbar .navbar-brand { font-weight: 700; }
+    .card { border: 1px solid #e5e7eb; border-radius: 14px; box-shadow: 0 8px 22px rgba(15,23,42,.06); }
+    .muted { color: #6b7280; }
+    iframe { background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; }
+    .badge-status { font-weight: 700; }
+
+    
+    .btn-primary { background: #6f42c1; border-color: #6f42c1; }
+    .btn-primary:hover { background: #5b35a3; border-color: #5b35a3; }
+    .btn-outline-primary { color: #6f42c1; border-color: #6f42c1; }
+    .btn-outline-primary:hover { background: #6f42c1; border-color: #6f42c1; }
+    .nav-pills .nav-link.active { background: #6f42c1; }
+    .nav-pills .nav-link { color: #111827; }
+    .dropdown-menu { border-radius: 12px; }
+
+    
+    .file-item { background: #ffffff; border-color: #e5e7eb; color: #0f172a; }
+    .file-item:hover { background: #f3f4f6; }
+  </style>
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark" style="border-bottom:1px solid #0b1220;">
+  <div class="container-fluid">
+    <a class="navbar-brand" href="/app">PDF Engine</a>
+    <div class="d-flex gap-2">
+      {% if user %}
+        <span class="navbar-text muted">👤 {{ user.username }}</span>
+        <form method="post" action="/logout">
+          <button class="btn btn-sm btn-outline-light" type="submit">Выйти</button>
+        </form>
+      {% else %}
+        <a class="btn btn-sm btn-outline-light" href="/login">Вход</a>
+      {% endif %}
+    </div>
+  </div>
+</nav>
+
+<div class="container-fluid py-3">
+  {% block content %}{% endblock %}
+</div>
+</body>
+</html>

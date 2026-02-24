@@ -1,0 +1,314 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row g-3">
+  <div class="col-12 col-lg-8">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <div>
+        <h5 class="mb-0">{{ doc.filename }}</h5>
+      </div>
+      <div class="d-flex gap-2 align-items-center">
+        {% set st = (status or '') %}
+        {% if st == 'ready' %}{% set cls = 'bg-success' %}
+        {% elif st == 'processing' %}{% set cls = 'bg-warning text-dark' %}
+        {% elif st == 'queued' %}{% set cls = 'bg-info text-dark' %}
+        {% elif st == 'error' %}{% set cls = 'bg-danger' %}
+        {% else %}{% set cls = 'bg-secondary' %}{% endif %}
+        <span id="statusBadge" class="badge {{ cls }} badge-status">{{ st }}</span>
+        <form method="post" action="/doc/{{doc.id}}/close_page">
+          <button class="btn btn-sm btn-outline-secondary" type="submit">На главную</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <ul class="nav nav-pills">
+        <li class="nav-item"><a class="nav-link {% if v=='original' %}active{% endif %}" href="/doc/{{doc.id}}?v=original">Изначальная</a></li>
+        <li class="nav-item"><a class="nav-link {% if v=='saved' %}active{% endif %} {% if (not has_saved) and (v!='saved') %}disabled{% endif %}" href="/doc/{{doc.id}}?v=saved">Последняя сохраненная</a></li>
+        <li class="nav-item"><a class="nav-link {% if v=='draft' %}active{% endif %} {% if (not has_draft) and (v!='draft') %}disabled{% endif %}" href="/doc/{{doc.id}}?v=draft">Текущая</a></li>
+      </ul>
+
+      
+      {% set view_ready = True %}
+      {% if v=='draft' and not has_draft %}{% set view_ready = False %}{% endif %}
+      {% if v=='saved' and not has_saved %}{% set view_ready = False %}{% endif %}
+
+      <div class="d-flex gap-2">
+        <a class="btn btn-sm btn-outline-secondary {% if not view_ready %}disabled{% endif %}" {% if not view_ready %}href="#"{% else %}href="/download/{{doc.id}}/{{v}}/pdf"{% endif %}>PDF</a>
+        <a class="btn btn-sm btn-outline-secondary {% if (v=='original') or (not view_ready) %}disabled{% endif %}" {% if (v=='original') or (not view_ready) %}href="#"{% else %}href="/download/{{doc.id}}/{{v}}/txt"{% endif %}>TXT</a>
+        <a class="btn btn-sm btn-outline-secondary {% if (v=='original') or (not view_ready) %}disabled{% endif %}" {% if (v=='original') or (not view_ready) %}href="#"{% else %}href="/download/{{doc.id}}/{{v}}/md"{% endif %}>MD</a>
+        <a class="btn btn-sm btn-outline-secondary {% if (v=='original') or (not view_ready) %}disabled{% endif %}" {% if (v=='original') or (not view_ready) %}href="#"{% else %}href="/download/{{doc.id}}/{{v}}/tex"{% endif %}>TeX</a>
+      </div>
+    </div>
+
+    {% if last_error %}
+      <div class="alert alert-danger d-flex justify-content-between align-items-start gap-3">
+        <div style="white-space: pre-wrap;">{{ last_error }}</div>
+        <form method="post" action="/doc/{{ doc.id }}/clear_error?v={{ v }}">
+          <button class="btn btn-sm btn-outline-light" type="submit">Скрыть</button>
+        </form>
+      </div>
+    {% endif %}
+
+    <iframe id="pdfFrame" src="{{ pdf_url }}" width="100%" height="820px"></iframe>
+
+    <div class="card p-2 mt-2">
+      <div class="d-flex gap-2">
+        <input id="fileSearchInput" class="form-control" placeholder="Поиск по файлу…" />
+        <button id="fileSearchBtn" class="btn btn-outline-primary" type="button">Найти</button>
+      </div>
+      <div id="fileSearchResults" class="small mt-2"></div>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-4">
+    <div class="card p-3 mb-3">
+      <h6 class="mb-2">Параметры обработки</h6>
+
+      {% if v == 'original' %}
+      <form id="normalizeForm" method="post" action="/doc/{{doc.id}}/normalize_original" class="mb-2">
+        <button class="btn btn-outline-secondary w-100" type="submit">Предобработка</button>
+      </form>
+{% else %}
+      <form id="applyForm" method="post" action="/doc/{{doc.id}}/apply">
+        <input type="hidden" name="base_kind" value="{{ v }}" />
+
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" name="spelling" id="spelling" checked>
+          <label class="form-check-label" for="spelling">Проверка и исправление орфографии/пунктуации</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" name="structure" id="structure" checked>
+          <label class="form-check-label" for="structure">Улучшение структуры: пробелы/переносы строк/табуляция</label>
+        </div>
+        <div class="form-check mb-2">
+          <input class="form-check-input" type="checkbox" name="toc_indexes" id="toc_indexes" checked>
+          <label class="form-check-label" for="toc_indexes">Оглавление</label>
+        </div>
+
+        <textarea class="form-control mb-2" name="extra" rows="3" placeholder="Доп. требования..."></textarea>
+
+        <button class="btn btn-primary w-100" type="submit">Применить изменения</button>
+      </form>
+      {% endif %}
+    </div>
+
+    <div class="card p-3 mb-3">
+      <h6 class="mb-2">Управление версиями</h6>
+      <div class="d-flex gap-2">
+        <form method="post" action="/doc/{{doc.id}}/save" class="w-50">
+          <button class="btn btn-success w-100" type="submit" {% if (not has_draft) or (status != 'ready') %}disabled{% endif %}>Сохранить</button>
+        </form>
+        <form method="post" action="/doc/{{doc.id}}/cancel" class="w-50">
+          <button class="btn btn-outline-secondary w-100" type="submit" {% if not has_draft %}disabled{% endif %}>Отмена</button>
+        </form>
+      </div>
+      <hr/>
+      <div class="small muted mb-2">Владелец: <b>{{ owner_username }}</b></div>
+      <form method="post" action="/doc/{{doc.id}}/delete_me">
+        {% if is_owner %}
+          <button class="btn btn-sm btn-danger w-100" type="submit">Удалить у всех</button>
+        {% else %}
+          <button class="btn btn-sm btn-danger w-100" type="submit">Удалить у себя</button>
+        {% endif %}
+      </form>
+    </div>
+
+    <div class="card p-3">
+      <h6 class="mb-2">Доступ</h6>
+      {% if is_owner %}
+        <form method="post" action="/doc/{{doc.id}}/share/add" class="mb-2">
+          <div class="input-group">
+            <input class="form-control" name="username" placeholder="Логин пользователя">
+            <button class="btn btn-outline-primary" type="submit">Добавить</button>
+          </div>
+        </form>
+      {% endif %}
+
+      {% if shares and shares|length > 0 %}
+        <div class="list-group">
+          {% for u in shares %}
+            <div class="list-group-item d-flex justify-content-between align-items-center">
+              <div class="text-truncate">{{ u }}</div>
+              {% if is_owner %}
+                <form method="post" action="/doc/{{doc.id}}/share/remove" class="m-0">
+                  <input type="hidden" name="username" value="{{ u }}" />
+                  <button class="btn btn-sm btn-outline-danger" type="submit">Убрать</button>
+                </form>
+              {% endif %}
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="small muted">Доступов нет.</div>
+      {% endif %}
+
+      {% if not is_owner %}
+        <div class="small muted mt-2">Управлять доступом может только автор.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const docId = {{ doc.id }};
+  const statusBadge = document.getElementById("statusBadge");
+  const pdfFrame = document.getElementById("pdfFrame");
+  const applyForm = document.getElementById("applyForm");
+  const normalizeForm = document.getElementById("normalizeForm");
+
+  const searchInput = document.getElementById("fileSearchInput");
+  const searchBtn = document.getElementById("fileSearchBtn");
+  const searchBox = document.getElementById("fileSearchResults");
+  const currentV = "{{ v }}";
+
+  const pendingKey = "pending_apply_" + docId;
+
+  function beaconClose(){
+    try{
+      navigator.sendBeacon(`/doc/${docId}/close`, "");
+    }catch(e){}
+  }
+  const brand = document.querySelector("a.navbar-brand");
+  if(brand){
+    brand.addEventListener("click", function(){
+      beaconClose();
+    });
+  }
+  const logoutForm = document.querySelector("form[action='/logout']");
+  if(logoutForm){
+    logoutForm.addEventListener("submit", function(){
+      beaconClose();
+    });
+  }
+
+  function setBadge(text, cls){
+    statusBadge.textContent = text;
+    statusBadge.className = "badge badge-status " + cls;
+  }
+
+  function showStatusFromServer(serverStatus){
+    if(serverStatus === "ready"){
+      setBadge("ready", "bg-success");
+    } else if(serverStatus === "processing"){
+      setBadge("processing", "bg-warning text-dark");
+    } else if(serverStatus === "queued"){
+      setBadge("queued", "bg-info text-dark");
+    } else if(serverStatus === "error"){
+      setBadge("error", "bg-danger");
+    } else {
+      setBadge(serverStatus, "bg-secondary");
+    }
+  }
+
+  if(applyForm){
+    applyForm.addEventListener("submit", function(){
+      sessionStorage.setItem(pendingKey, "1");
+      setBadge("queued", "bg-info text-dark");
+    });
+  }
+
+  if(normalizeForm){
+    normalizeForm.addEventListener("submit", function(){
+      sessionStorage.setItem(pendingKey, "1");
+      setBadge("queued", "bg-info text-dark");
+    });
+  }
+
+  function escapeHtml(s){
+    return (s||"")
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;");
+  }
+
+  async function runSearch(){
+    const q = (searchInput?.value || "").trim();
+    if(!q){ if(searchBox) searchBox.innerHTML = ""; return; }
+    if(searchBox) searchBox.innerHTML = "<span class='text-muted'>Ищу…</span>";
+    try{
+      const r = await fetch(`/api/doc/${docId}/search?v=${encodeURIComponent(currentV)}&q=${encodeURIComponent(q)}`, {cache:"no-store"});
+      const j = await r.json();
+      if(j.error){
+        if(searchBox) searchBox.innerHTML = "<span class='text-danger'>Нет доступа</span>";
+        return;
+      }
+      const results = j.results || [];
+      if(results.length === 0){
+        if(searchBox) searchBox.innerHTML = "<span class='text-muted'>Ничего не найдено</span>";
+        return;
+      }
+      if(searchBox) searchBox.innerHTML = results.map(x =>
+        `<div class="border rounded p-2 mb-2 bg-white">
+           <div class="text-muted">…${escapeHtml(x.snippet)}…</div>
+         </div>`
+      ).join("");
+    }catch(e){
+      if(searchBox) searchBox.innerHTML = "<span class='text-danger'>Ошибка поиска</span>";
+    }
+  }
+
+  if(searchBtn){
+    searchBtn.addEventListener("click", runSearch);
+  }
+  if(searchInput){
+    searchInput.addEventListener("keydown", (e)=>{ if(e.key==="Enter") runSearch(); });
+  }
+
+  let pending = sessionStorage.getItem(pendingKey) === "1";
+  let waitingForIframe = false;
+
+  async function poll(){
+    try{
+      const r = await fetch(`/api/doc/${docId}/status`, {cache: "no-store"});
+      const j = await r.json();
+      if(j.error){ return; }
+
+      if(!pending){
+        if(currentV === "draft" && j.status === "ready" && !j.has_draft){
+          window.location.href = `/doc/${docId}?v=original`;
+          return;
+        }
+        if(currentV === "saved" && j.status === "ready" && !j.has_saved){
+          window.location.href = `/doc/${docId}?v=original`;
+          return;
+        }
+      }
+
+      if(pending){
+        if(j.status === "ready" && j.has_draft && j.draft_pdf_ready){
+          waitingForIframe = true;
+          setBadge("loading pdf…", "bg-warning text-dark");
+          const ts = Date.now();
+          pdfFrame.src = `/file/generated/${docId}_draft.pdf?ts=${ts}`;
+        } else {
+          showStatusFromServer(j.status);
+        }
+      } else {
+        showStatusFromServer(j.status);
+      }
+
+      if(j.status === "error" && j.last_error){
+        setBadge("error", "bg-danger");
+      }
+    } catch(e){
+    }
+  }
+
+  pdfFrame.addEventListener("load", function(){
+    if(waitingForIframe){
+      waitingForIframe = false;
+      pending = false;
+      sessionStorage.removeItem(pendingKey);
+      setBadge("ready", "bg-success");
+      setTimeout(function(){
+        try{ window.location.reload(); }catch(e){}
+      }, 250);
+    }
+  });
+
+  setInterval(poll, 2000);
+  poll();
+})();
+</script>
+{% endblock %}

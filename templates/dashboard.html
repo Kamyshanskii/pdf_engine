@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row g-3">
+  <div class="col-12 col-lg-4">
+    <div class="card p-3 mb-3">
+      <h5 class="mb-2">Загрузить PDF</h5>
+      <form method="post" action="/upload" enctype="multipart/form-data">
+        <input class="form-control mb-2" type="file" name="file" accept="application/pdf" required>
+        <button class="btn btn-primary w-100">Загрузить</button>
+      </form>
+    </div>
+
+    <div class="card p-3">
+      <h5 class="mb-2">Поиск</h5>
+      <form method="get" action="/app">
+        <input class="form-control mb-2" name="q" value="{{ q }}" placeholder="Поиск по содержимому…">
+        <button class="btn btn-outline-primary w-100">Искать</button>
+      </form>
+
+      {% if results %}
+        <hr/>
+        <div class="small muted mb-2">Результаты ({{ results|length }})</div>
+        <div style="max-height: 320px; overflow:auto;">
+        {% for r in results %}
+          <div class="mb-3">
+            <div><a href="/doc/{{ r.doc.id }}">{{ r.doc.filename }}</a></div>
+            <div class="small muted">({{ r.kind }})</div>
+            <div class="small">{{ r.snippet|safe }}</div>
+          </div>
+        {% endfor %}
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-8">
+    <div class="card p-3 mb-3">
+      <h5 class="mb-2">Мои файлы</h5>
+      {% if my_docs %}
+        <div class="list-group">
+          {% for d in my_docs %}
+          <a class="list-group-item list-group-item-action file-item"
+             href="/doc/{{ d.id }}">
+            <div class="d-flex justify-content-between">
+              <div>{{ d.filename }}</div>
+              {% set st = (d.status or '') %}
+              {% if st == 'ready' %}{% set cls = 'bg-success' %}
+              {% elif st == 'processing' %}{% set cls = 'bg-warning text-dark' %}
+              {% elif st == 'queued' %}{% set cls = 'bg-info text-dark' %}
+              {% elif st == 'error' %}{% set cls = 'bg-danger' %}
+              {% else %}{% set cls = 'bg-secondary' %}{% endif %}
+              <span class="badge {{ cls }} badge-status">{{ st }}</span>
+            </div>
+            <div class="small muted">обновлено: {{ d.updated_at }}</div>
+          </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="muted">Пока нет файлов.</div>
+      {% endif %}
+    </div>
+
+    <div class="card p-3">
+      <h5 class="mb-2">Доступные мне</h5>
+      {% if shared_docs %}
+        <div class="list-group">
+          {% for d in shared_docs %}
+          <a class="list-group-item list-group-item-action file-item"
+             href="/doc/{{ d.id }}">
+            <div class="d-flex justify-content-between">
+              <div>{{ d.filename }}</div>
+              {% set st = (d.status or '') %}
+              {% if st == 'ready' %}{% set cls = 'bg-success' %}
+              {% elif st == 'processing' %}{% set cls = 'bg-warning text-dark' %}
+              {% elif st == 'queued' %}{% set cls = 'bg-info text-dark' %}
+              {% elif st == 'error' %}{% set cls = 'bg-danger' %}
+              {% else %}{% set cls = 'bg-secondary' %}{% endif %}
+              <span class="badge {{ cls }} badge-status">{{ st }}</span>
+            </div>
+            <div class="small muted">обновлено: {{ d.updated_at }}</div>
+          </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="muted">Нет доступных файлов.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

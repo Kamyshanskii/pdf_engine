@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <div class="row justify-content-center">
+    <div class="col-12 col-md-8 col-lg-6">
+      <div class="card p-4">
+        <h3 class="mb-2">Нет доступа</h3>
+        <p class="muted mb-3">
+          У вас нет доступа для работы с этим документом.
+        </p>
+        <div class="d-flex gap-2">
+          <a class="btn btn-primary" href="/app">На главную</a>
+          <a class="btn btn-outline-primary" href="/logout" onclick="event.preventDefault(); document.getElementById('logoutForm').submit();">Сменить пользователя</a>
+        </div>
+        <form id="logoutForm" method="post" action="/logout" class="d-none"></form>
+      </div>
+    </div>
+  </div>
+{% endblock %}
